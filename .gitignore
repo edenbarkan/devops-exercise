@@ -1,0 +1,13 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# kind kubeconfig written by Terraform
+terraform/*-config
+
+# Local
+.kiro/
+.DS_Store
+*.log
