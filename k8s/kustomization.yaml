@@ -1,19 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: hello
-
 labels:
   - pairs:
       app.kubernetes.io/name: hello
       app.kubernetes.io/part-of: devops-exercise
     includeSelectors: false
-
 resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
   - pdb.yaml
-
 # CI rewrites newTag on every build (immutable git SHA, never "latest").
 images:
   - name: ghcr.io/edenbarkan/devops-exercise
