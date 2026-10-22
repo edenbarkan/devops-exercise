@@ -38,5 +38,17 @@ resource "helm_release" "traefik" {
     }
 
     ingressClass = { enabled = true, isDefaultClass = true, name = "traefik" }
+
+    # By default Traefik copies Ingress status from its own Service. A ClusterIP
+    # Service never gets an address, so Ingress status stays empty and Argo CD
+    # reports the app as Progressing forever. Publish the loopback address that
+    # the hostPort mapping actually serves instead.
+    # https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress/
+    providers = {
+      kubernetesIngress = {
+        publishedService = { enabled = false }
+        ingressEndpoint  = { ip = "127.0.0.1" }
+      }
+    }
   })]
 }
