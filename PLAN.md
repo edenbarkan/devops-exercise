@@ -96,8 +96,9 @@ README.md  ai-prompts.md
 
 ## Part 3: CI/CD
 
-- [ ] Trigger: `push` to `main`, `paths-ignore: [k8s/**, '**.md']` (GITHUB_TOKEN pushes don't retrigger anyway; filter is belt and braces).
-- [ ] `permissions: {contents: write, packages: write}` + `concurrency` group.
+- [ ] Trigger: `push` to `main` and `pull_request`, both limited to `paths: [app/**, .github/workflows/ci.yaml]`. The tag bump is pushed with a deploy key, and deploy-key pushes DO start workflows, so this path filter is what prevents a loop. PRs test and build both arches but push nothing.
+- [ ] `permissions: contents: read` at the top, `packages: write` only on the build job; `concurrency` per ref (cancel on PRs, queue on `main`).
+- [ ] Tag-bump push uses the `DEPLOY_KEY` secret (`actions/checkout` `ssh-key:`), the only bypass of the "main: PR only" ruleset. Personal repos can't exempt the GitHub Actions app.
 - [ ] Steps:
   1. checkout;
   2. `go test`;

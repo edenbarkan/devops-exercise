@@ -31,3 +31,16 @@ AI mistake caught: the Traefik values used `service.type = ClusterIP`. Chart
 Service rendered as `LoadBalancer`. Caught by `helm template` before apply.
 Also: the plan said Traefik 41.6.x, but 42.x already had patch releases
 (42.1.2), so the newer line was used after checking its values schema.
+
+## 4. CI/CD
+
+Prompt: "ok" (start Part 3).
+
+Output: `.github/workflows/ci.yaml` (test -> multi-arch build/push to GHCR ->
+bump `newTag` in `k8s/kustomization.yaml`), `scripts/rollout-check.sh`.
+
+AI mistake caught: the plan said the path filter was "belt and braces" because
+`GITHUB_TOKEN` pushes don't retrigger workflows. Once the bump moved to a deploy
+key (needed to pass the PR-only ruleset), that stopped being true: deploy-key
+pushes do trigger workflows, so the `paths:` filter is now the loop guard.
+Actions are pinned to commit SHAs; `actionlint` and `shellcheck` pass.
