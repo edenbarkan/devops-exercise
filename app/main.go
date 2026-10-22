@@ -18,7 +18,7 @@ import (
 
 // message is a code constant on purpose: changing it must go through the full
 // CI -> image -> GitOps pipeline.
-const message = "Hello from GitOps!"
+const message = "Hello from GitOps, v2: shipped with zero downtime!"
 
 // version is injected at build time: -ldflags "-X main.version=<git sha>".
 var version = "dev"
