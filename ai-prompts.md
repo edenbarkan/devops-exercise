@@ -44,3 +44,15 @@ AI mistake caught: the plan said the path filter was "belt and braces" because
 key (needed to pass the PR-only ruleset), that stopped being true: deploy-key
 pushes do trigger workflows, so the `paths:` filter is now the loop guard.
 Actions are pinned to commit SHAs; `actionlint` and `shellcheck` pass.
+
+AI mistake caught: the first `main` run failed with `permission_denied:
+write_package`. The GHCR package had been created by a manual bootstrap push
+with a personal token, so the repo's `GITHUB_TOKEN` couldn't write to it. Fix:
+package settings -> Manage Actions access -> add the repo with role Write (it
+defaults to Read). A package first pushed by CI would have been linked
+automatically.
+
+## 5. Zero-downtime demo
+
+Prompt: "ok lets do it". Change the message in `app/main.go`, merge via PR,
+run `scripts/rollout-check.sh` during the rollout and count non-200 responses.
