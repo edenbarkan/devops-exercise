@@ -9,5 +9,7 @@ terraform/*-config
 
 # Local
 .kiro/
+PLAN.md
+ai-prompts.md
 .DS_Store
 *.log

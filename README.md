@@ -26,7 +26,6 @@ tag to git; Argo CD rolls it out. Nothing outside git ever touches the cluster.
 | `k8s/` | Kustomize manifests: Deployment, Service, Ingress, PDB; CI edits `newTag` here |
 | `.github/workflows/ci.yaml` | test -> build/push -> tag bump |
 | `scripts/rollout-check.sh` | Zero-downtime probe |
-| `PLAN.md`, `ai-prompts.md` | Plan with checkboxes; AI prompt log and the AI mistakes caught |
 
 ## Running it
 
@@ -121,10 +120,3 @@ changing from the old ReplicaSet to the new one.
   of polling.
 - **Policy and observability:** PSA `restricted` or Kyverno, NetworkPolicies,
   HPA on real metrics, Amazon Managed Prometheus and Grafana.
-
-## AI usage
-
-Every prompt, its output and what was verified or corrected is in
-[`ai-prompts.md`](ai-prompts.md), including the AI mistakes caught along the way
-(Traefik chart key rename, the CI loop assumption, the GHCR write permission,
-the Ingress address on kind).
