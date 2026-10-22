@@ -57,16 +57,16 @@ Go: one static binary, ~10 MB image, clean SIGTERM shutdown.
 
 Files by type: `versions.tf`, `providers.tf`, `variables.tf`, `cluster.tf`, `ingress.tf`, `argocd.tf`, `outputs.tf`.
 
-- [ ] `kind_cluster`: 1 control-plane + 2 workers.
+- [x] `kind_cluster`: 1 control-plane + 2 workers.
   - control-plane label `ingress-ready=true`, `extraPortMappings` host 80/443 → container 80/443;
   - `wait_for_ready = true`.
-- [ ] Helm provider configured from `kind_cluster` outputs (endpoint, client cert/key, CA).
+- [x] Helm provider configured from `kind_cluster` outputs (endpoint, client cert/key, CA).
   - Tradeoff for review: HashiCorp advises against configuring a provider from a resource in the same state. Fine locally; production splits cluster and add-ons into separate states.
-- [ ] Traefik `helm_release`: `hostPort` 80/443, `nodeSelector ingress-ready=true` + control-plane toleration, IngressClass `traefik` as default.
-- [ ] Argo CD `helm_release`: `dex.enabled=false`, `configs.params."server.insecure"=true` (UI behind plain-HTTP Ingress), `timeout.reconciliation` ~30s (no webhook to localhost).
-- [ ] Root Application via `argocd-apps` → `argocd/` in the repo, `depends_on` Argo CD release, `wait = true` + timeouts.
-- [ ] Hygiene: commit `.terraform.lock.hcl`; `.gitignore` `*.tfstate*` and `.terraform/`; `terraform fmt -check` + `validate`; local state, documented.
-- [ ] Acceptance: `apply` → `destroy` → `apply` once.
+- [x] Traefik `helm_release`: `hostPort` 80/443, `nodeSelector ingress-ready=true` + control-plane toleration, IngressClass `traefik` as default.
+- [x] Argo CD `helm_release`: `dex.enabled=false`, `configs.params."server.insecure"=true` (UI behind plain-HTTP Ingress), `timeout.reconciliation` ~30s (no webhook to localhost).
+- [x] Root Application via `argocd-apps` → `argocd/` in the repo, `depends_on` Argo CD release, `wait = true` + timeouts.
+- [x] Hygiene: commit `.terraform.lock.hcl`; `.gitignore` `*.tfstate*` and `.terraform/`; `terraform fmt -check` + `validate`; local state, documented.
+- [x] Acceptance: `apply` → `destroy` → `apply` once.
 
 ## Part 2: GitOps
 
@@ -80,26 +80,26 @@ scripts/rollout-check.sh
 README.md  ai-prompts.md
 ```
 
-- [ ] Argo Application: `automated: {prune: true, selfHeal: true}`, `CreateNamespace=true`, public repo (no credentials).
-- [ ] Deployment:
+- [x] Argo Application: `automated: {prune: true, selfHeal: true}`, `CreateNamespace=true`, public repo (no credentials).
+- [x] Deployment:
   - rollout: 2 replicas, `RollingUpdate` `maxUnavailable: 0, maxSurge: 1`, `minReadySeconds: 5`;
   - probes: readiness `/readyz`, liveness `/healthz`;
   - resources: requests 50m/64Mi, limits 200m/128Mi (be ready to explain CPU-limit throttling);
   - shutdown: `lifecycle.preStop.sleep.seconds: 5` (native sleep — distroless has no shell), `terminationGracePeriodSeconds: 30`;
   - hardening: `runAsNonRoot`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `seccompProfile: RuntimeDefault`, `automountServiceAccountToken: false`;
   - placement: `topologySpreadConstraints` across workers + PDB `minAvailable: 1`.
-- [ ] Ingress host `hello.127.0.0.1.nip.io` (fallback: `/etc/hosts`).
-- [ ] Bootstrap image before CI exists:
+- [x] Ingress host `hello.127.0.0.1.nip.io` (fallback: `/etc/hosts`).
+- [x] Bootstrap image before CI exists:
   1. `gh auth token | docker login ghcr.io`;
   2. push the image once by hand;
   3. set GHCR package public (no `imagePullSecret`).
 
 ## Part 3: CI/CD
 
-- [ ] Trigger: `push` to `main` and `pull_request`, both limited to `paths: [app/**, .github/workflows/ci.yaml]`. The tag bump is pushed with a deploy key, and deploy-key pushes DO start workflows, so this path filter is what prevents a loop. PRs test and build both arches but push nothing.
-- [ ] `permissions: contents: read` at the top, `packages: write` only on the build job; `concurrency` per ref (cancel on PRs, queue on `main`).
-- [ ] Tag-bump push uses the `DEPLOY_KEY` secret (`actions/checkout` `ssh-key:`), the only bypass of the "main: PR only" ruleset. Personal repos can't exempt the GitHub Actions app.
-- [ ] Steps:
+- [x] Trigger: `push` to `main` and `pull_request`, both limited to `paths: [app/**, .github/workflows/ci.yaml]`. The tag bump is pushed with a deploy key, and deploy-key pushes DO start workflows, so this path filter is what prevents a loop. PRs test and build both arches but push nothing.
+- [x] `permissions: contents: read` at the top, `packages: write` only on the build job; `concurrency` per ref (cancel on PRs, queue on `main`).
+- [x] Tag-bump push uses the `DEPLOY_KEY` secret (`actions/checkout` `ssh-key:`), the only bypass of the "main: PR only" ruleset. Personal repos can't exempt the GitHub Actions app.
+- [x] Steps:
   1. checkout;
   2. `go test`;
   3. setup-buildx;
@@ -107,8 +107,8 @@ README.md  ai-prompts.md
   5. build-push `platforms: linux/amd64,linux/arm64`, tag `ghcr.io/<user>/<repo>:${{ github.sha }}` (immutable, never `latest`), `cache-from/to: type=gha`, provenance/SBOM on;
   6. update `newTag` in `k8s/kustomization.yaml` with `yq` (verify preinstalled on first run);
   7. commit as `github-actions[bot]`, `git pull --rebase && git push`.
-- [ ] No `kubectl` in CI — Argo CD rolls the change out.
-- [ ] Zero-downtime proof `scripts/rollout-check.sh` (`#!/usr/bin/env bash`):
+- [x] No `kubectl` in CI — Argo CD rolls the change out.
+- [x] Zero-downtime proof `scripts/rollout-check.sh` (`#!/usr/bin/env bash`):
   - loop `curl -s -o /dev/null -w '%{http_code}' --max-time 2` with timestamp;
   - `tee` to a log;
   - count non-200 at the end.
@@ -124,7 +124,7 @@ README.md  ai-prompts.md
   - `ServerSideApply=true` (CRDs too big for client-side);
   - disable etcd, scheduler, controller-manager, proxy scraping (down on kind);
   - Grafana on an Ingress.
-- [ ] EKS production section in README:
+- [x] EKS production section in README:
   - infra/nodes: split Terraform states; S3 remote state with native `use_lockfile` (no DynamoDB); Karpenter or managed node groups across 3 AZs;
   - ingress/secrets: AWS Load Balancer Controller or Gateway API with ACM TLS + ExternalDNS; EKS Pod Identity; External Secrets;
   - images: ECR immutable tags + scanning; cosign signing;

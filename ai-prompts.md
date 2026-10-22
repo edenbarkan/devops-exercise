@@ -56,3 +56,23 @@ automatically.
 
 Prompt: "ok lets do it". Change the message in `app/main.go`, merge via PR,
 run `scripts/rollout-check.sh` during the rollout and count non-200 responses.
+
+Result: 1376 requests, 0 non-200. The log shows version `2347520` -> mixed ->
+`9f8723f` and the pods moving from the old ReplicaSet to the new one. CI run
+2m10s; the bump commit triggered no further run.
+
+AI mistake caught (earlier, Part 2): Argo CD kept `hello` at `Progressing`
+with healthy pods. Argo marks an Ingress healthy only once it has an address,
+and Traefik copied it from its ClusterIP Service, which never gets one on kind.
+Fix: `publishedService` off, `ingressEndpoint.ip = 127.0.0.1` (PR #1).
+
+## 6. Acceptance: destroy and rebuild
+
+`terraform destroy` (4 destroyed), then `terraform apply` (4 added, ~1.5 min).
+Argo CD synced `root` and `hello` from git unaided; the app came back on image
+`9f8723f` with the v2 message. No manual step was needed.
+
+## 7. README
+
+Prompt: "ok" (write the final README). Output: `README.md`. Each claim was
+checked against the manifests, Terraform and workflow before committing.
