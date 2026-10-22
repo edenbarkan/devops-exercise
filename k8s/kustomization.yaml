@@ -14,4 +14,4 @@ resources:
 # CI rewrites newTag on every build (immutable git SHA, never "latest").
 images:
   - name: ghcr.io/edenbarkan/devops-exercise
-    newTag: 7d3d41dd473bd78c1c9af143bdbc56369ef3e2be
+    newTag: 2347520af4e120db5fca34f02707e0d111d9dc42
