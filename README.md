@@ -4,16 +4,76 @@ A Go web app deployed to a local kind cluster by Argo CD. Terraform builds the
 cluster and its add-ons; GitHub Actions builds the image and commits the new
 tag to git; Argo CD rolls it out. Nothing outside git ever touches the cluster.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    user(["Browser"])
+    tf[["Terraform"]]
+
+    subgraph github["GitHub"]
+        repo[("Git repo<br/>edenbarkan/devops-exercise<br/>main: PR-only ruleset")]
+        ci["GitHub Actions<br/>test, build, bump"]
+        ghcr[("GHCR<br/>multi-arch image<br/>tag = commit SHA")]
+    end
+
+    subgraph host["Mac host, Docker"]
+        subgraph kind["kind cluster gitops-lab"]
+            subgraph cp["control-plane node"]
+                traefik["Traefik<br/>hostPort 80/443"]
+            end
+            subgraph ns_argo["namespace argocd"]
+                argocd["Argo CD<br/>root app, app-of-apps"]
+            end
+            subgraph ns_hello["namespace hello"]
+                svc["Service hello"]
+                pod1["Pod, worker 1"]
+                pod2["Pod, worker 2"]
+            end
+        end
+    end
+
+    tf -- "creates cluster,<br/>installs Traefik + Argo CD" --> kind
+    user -- "hello.127.0.0.1.nip.io<br/>argocd.127.0.0.1.nip.io" --> traefik
+    traefik -- "Ingress" --> svc
+    traefik -- "Ingress" --> argocd
+    svc --> pod1
+    svc --> pod2
+    repo -- "push to main" --> ci
+    ci -- "push image" --> ghcr
+    ci -- "commit newTag<br/>via deploy key" --> repo
+    argocd -- "polls every 30s" --> repo
+    argocd -- "sync k8s/<br/>prune + selfHeal" --> ns_hello
+    pod1 -. "pull image" .-> ghcr
+    pod2 -. "pull image" .-> ghcr
 ```
- developer --PR--> main --push--> GitHub Actions
-                                   test -> build (amd64+arm64) -> push ghcr.io/...:<sha>
-                                   bump k8s/kustomization.yaml newTag  (deploy key)
-                                          |
-                                          v
- kind cluster (Terraform)        git (source of truth)
-   Traefik ingress  <-- Argo CD polls main every 30s, syncs k8s/ (prune + selfHeal)
-   Argo CD
-   hello Deployment x2  ->  http://hello.127.0.0.1.nip.io
+
+## Delivery flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant GH as GitHub repo
+    participant CI as GitHub Actions
+    participant Reg as GHCR
+    participant Argo as Argo CD
+    participant K8s as hello Deployment
+
+    Dev->>GH: Open PR from feature branch
+    GH->>CI: pull_request run
+    CI-->>GH: test + build both arches, no push
+    Dev->>GH: Merge PR to main
+    GH->>CI: push run, paths app/**
+    CI->>CI: go vet + go test -race
+    CI->>Reg: push image tagged with commit SHA
+    CI->>GH: commit newTag in k8s/kustomization.yaml, deploy key
+    Note over GH,CI: bump touches only k8s/, so no new CI run
+    Argo->>GH: poll main, detect new revision
+    Argo->>K8s: apply manifests with new image tag
+    K8s->>Reg: pull new image
+    K8s->>K8s: rolling update, maxUnavailable 0, readiness gated
+    Note over K8s: old pods fail /readyz, preStop sleep, drain, exit
 ```
 
 ## Repository layout
@@ -41,12 +101,37 @@ terraform apply          # ~1.5 min warm, ~5 min on first image pulls
 Then:
 
 - App: <http://hello.127.0.0.1.nip.io> (nip.io resolves to 127.0.0.1; no `/etc/hosts` edit)
-- Argo CD: <http://argocd.127.0.0.1.nip.io>, user `admin`, password from
-  `terraform output -raw argocd_admin_password_cmd | sh`
+- Argo CD: see below
 - kubectl: `kubectl --context kind-gitops-lab get pods -n hello`
 
 `terraform destroy` removes everything; a following `apply` rebuilds the
 cluster and Argo CD redeploys the app from git with no manual steps (verified).
+
+### Argo CD UI
+
+Argo CD is exposed through the same Traefik Ingress at
+<http://argocd.127.0.0.1.nip.io> (plain HTTP, bound to 127.0.0.1 only;
+`server.insecure=true` because TLS would terminate at the ingress).
+
+```bash
+# user: admin
+terraform -chdir=terraform output -raw argocd_admin_password_cmd | sh
+```
+
+The UI shows the `root` app and the `hello` app it manages: sync status, the
+live resource tree, rollout history and diffs against git. Manual edits in the
+cluster are reverted by `selfHeal`, so changes belong in a PR.
+
+If the Ingress is unavailable, port-forward instead:
+
+```bash
+kubectl --context kind-gitops-lab -n argocd port-forward svc/argocd-server 8080:80
+# http://localhost:8080
+```
+
+After first login, change the admin password (User Info -> Update Password) and
+delete `argocd-initial-admin-secret`. Production would disable the local admin
+and use SSO with AppProject RBAC.
 
 ## Shipping a change
 
